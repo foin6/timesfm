@@ -223,6 +223,19 @@ class TimesFM_2p5_200M_torch_module(nn.Module):
 
     return renormed_outputs, renormed_quantile_spread, ar_renormed_outputs
 
+  def extract_features(self, inputs: torch.Tensor, masks: torch.Tensor) -> torch.Tensor:
+      batch_size, context_len = inputs.shape[0], inputs.shape[1]
+      # Prefill
+      patched_inputs = torch.reshape(inputs, (batch_size, -1, self.p)).to(self.device) # [batch_size, num_patches, token_per_patch]
+      patched_masks = torch.reshape(masks, (batch_size, -1, self.p)).to(self.device)
+      with torch.no_grad():
+        res = self.forward(patched_inputs, patched_masks)
+        input_embeddings = res[0][0]
+        output_embeddings = res[0][1]
+        
+        return input_embeddings, output_embeddings # [batch_size, num_patches, model_dims]
+        # 也可以考虑取最后一个patch的特征作为序列特征
+
   def forecast_naive(
     self, horizon: int, inputs: Sequence[np.ndarray]
   ) -> list[np.ndarray]:
